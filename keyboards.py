@@ -56,18 +56,62 @@ def get_back_anketa():
     return key
 
 
-def get_basket():
+def get_basket(vkid):
+    product_names = get_name_vkid(vkid)
+    keys = VkKeyboard(one_time=True)
+    for i in range(len(product_names)):
+        name = product_names[i]
+        newName = name + " 📦"
+        keys.add_button(newName, color=VkKeyboardColor.SECONDARY)
+        keys.add_line()
+    keys.add_button('На главную 🏡', color=VkKeyboardColor.SECONDARY)
+    keys.add_button('Оформить заказ 📦', color=VkKeyboardColor.SECONDARY)
+    return keys
+
+
+def home():
     key = VkKeyboard(one_time=True)
+    key.add_button('код', color=VkKeyboardColor.SECONDARY)
+    return key
+
+def get_order(userid):
+    key = VkKeyboard(one_time=True)
+    helper = DBHelper()
+    orders = helper.get('package', ['user_id'], [str(userid)])
+    for order in orders:
+        key.add_button(str(order[0]) + " 🔔", color=VkKeyboardColor.SECONDARY)
+        key.add_line()
     key.add_button('На главную 🏡', color=VkKeyboardColor.SECONDARY)
-    key.add_button('Оформить заказ 📦', color=VkKeyboardColor.SECONDARY)
     return key
 
 
-def get_order():
+def get_order_all():
     key = VkKeyboard(one_time=True)
-    key.add_button('На главную 🏡', color=VkKeyboardColor.SECONDARY)
+    helper = DBHelper()
+    orders = helper.print_info('package')
+    for order in orders:
+        key.add_button(str(order[0]) + " ⚒", color=VkKeyboardColor.SECONDARY)
+        key.add_line()
+    key.add_button('код', color=VkKeyboardColor.SECONDARY)
     return key
 
+
+def get_order_all_list():
+    helper = DBHelper()
+    orders = helper.print_info('package')
+    ord = []
+    for order in orders:
+        ord.append(str(order[0]) + " ⚒")
+    return ord
+
+
+def get_list_order(userid):
+    helper = DBHelper()
+    orders = helper.get('package', ['user_id'], [str(userid)])
+    list = []
+    for orders in orders:
+        list.append(str(orders[0]) + " 🔔")
+    return list
 
 def get_making():
     key = VkKeyboard(one_time=True)
@@ -121,19 +165,6 @@ def get_list():
     keys.add_button("Поиск 🔎")
     return keys
 
-
-def get_list_basket(name): # TODO
-    product_names = get_name_search(name)
-    keys = VkKeyboard(one_time=True)
-
-    for i in range(len(product_names)):
-        name = product_names[i]
-        newName = name + " 📦"
-        keys.add_button(newName, color=VkKeyboardColor.SECONDARY)
-        keys.add_line()
-    keys.add_button('На главную 🏡')
-    return keys
-
 def get_list_search(name):
     product_names = get_name_search(name)
     keys = VkKeyboard(one_time=True)
@@ -177,13 +208,27 @@ def get_name_search(name):
             product_names.append(prod[1])
     return product_names
 
+def get_name_change():
+    key = VkKeyboard(one_time=True)
+    key.add_button('Удалить товар 💥', color=VkKeyboardColor.SECONDARY)
+    key.add_line()
+    key.add_button('Добавить товар 👍', color=VkKeyboardColor.SECONDARY)
+    return key
 
-def get_name_vkid(vkid): # TODO
+def get_name_vkid(vkid):  # TODO
     helper = DBHelper()
-    products_ = helper.print_info('product')
-    product_names = []
-    index = 0
-    for prod in products_:
-        if name.lower() in prod[1].lower():
-            product_names.append(prod[1])
-    return product_names
+    basket = helper.get('basket', ['user_id'], [str(vkid)])
+    basket_prod = helper.get('basket_products', ['basket_id'], [str(basket[0][0])])
+    products_ = []
+    for prod_id in basket_prod:
+        new_prod = helper.get('product', ['id'], [str(prod_id[2])])
+        products_.append(new_prod[0][1])
+    return products_
+
+
+def get_name_list_basket(vkid):
+    prod = get_name_vkid(vkid)
+    new = []
+    for pr in prod:
+        new.append(pr + " 📦")
+    return new
