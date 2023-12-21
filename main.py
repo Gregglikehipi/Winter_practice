@@ -1,0 +1,487 @@
+from threading import Thread
+import requests
+import vk_api
+
+import phonenumbers
+from vk_api.keyboard import VkKeyboard
+
+from DBHelper import DBHelper, convertToBinaryData, writeTofile, checkUser
+from vk_api import VkUpload
+from vk_api.longpoll import VkLongPoll, VkEventType
+from vk_api.utils import get_random_id
+from datetime import date
+
+from keyboards import get_start, get_anketa, get_home, get_basket, get_katalog, get_order, get_back_anketa, get_pay, \
+    get_making, get_chat, get_list, get_product, get_name, get_start_for_admin, get_list_search, get_name_for_search
+
+vk_session = vk_api.VkApi(
+    token="vk1.a.UtRaqh6hUBK2pHpcErYc-W4DVIzSrpquWdel63eSOl6lhhZlFyz2xOq2-9CZHG_FPu1h0TQxf5YdaJ0Gf8ZS90LKtV-ofDmXyGrVlsDY-W2uDEOAhrjnIRmTl-qDFkAxti3xLiYhkkPauRHqUPl5ZZ11m1IgcagujPAzDxZUgsa1KCWpYxOwbCnjUjhUqQt9cDrPAeh7ujFPMwmeos3OHw")
+
+longpool = VkLongPoll(vk_session)
+vk = vk_session.get_api()
+
+commands_for_start = ['Каталог 🗂', 'Корзина 🛒', 'Заказы 📋', 'Акции 💯', 'Анкета 📝', 'Помощь 🙏', 'О нас 🏪']
+commands_for_anketa = ['Имя 👩👨', 'Телефон 📞', 'Город 🏤', 'Адрес 🏨']
+commands_for_making = ['Самовывоз 🚹', 'Доставка 🚕']
+commands_for_pay = ['Наличными при получении 💵', 'Переводом на карту 💳']
+list_of_order = []
+
+def send_keyboard(userid, some_text, keyboard):
+    vk_session.method("messages.send", {"user_id": userid, "message": some_text, "random_id": get_random_id(),
+                                        'keyboard': keyboard.get_keyboard()})
+
+
+def send_message(userid, some_text):
+    vk_session.method("messages.send", {"user_id": userid, "message": some_text, "random_id": get_random_id()})
+
+
+def handle_message_start(userid, message):
+    if message == commands_for_start[0]:
+        key = get_list()
+        send_message(userid, "Каталог:")
+        write_card(userid)
+        send_keyboard(userid, "Выберите товар для добавления в корзину", key)
+    elif message == commands_for_start[1]:
+        key = get_basket()
+        send_message(userid, "Ваша текущая корзина:")
+        write_card_basket(userid)
+        send_keyboard(userid, "Выберите что делать", key)
+    elif message == commands_for_start[2]:
+        key = get_order()
+        send_keyboard(userid, "Ваши заказы:", key)
+    elif message == commands_for_start[3]:
+        key = get_home()
+        send_keyboard(userid, "Действующие акции:", key)
+    elif message == commands_for_start[4]:
+        key = get_anketa()
+        send_keyboard(userid, "Ваша анкета:", key)
+    elif message == commands_for_start[5]:
+        key = get_chat()
+        send_keyboard(userid, "Данные для связи с менеджером", key)
+        send_message(userid, "Номер телефона:89995833622 \n\tViber: 89995833622 \n\tTelegram: 89995833622 \n\tПочта: "
+                             "xamidullina.vika@mail.ru \n\tСтраница в вк: https://vk.com/sellstolen\n\t Если хотите "
+                             "дождаться оператора, нажмите 'оператор', если у вас срочный вопрос, можете перейти в "
+                             "чат с"
+                             " менеджером и написать напрямую")
+    elif message == commands_for_start[6]:
+        key = get_home()
+        send_keyboard(userid, "Информация о магазине", key)
+        send_message(userid, "Адрес: Южноуральск, ул. Пирогова 75\n\tРуководитель и менеджер: Хамидуллина Виктория "
+                             "Эдуардовна\n\tДата открытия: 15.08.2022\n\tКак найти: Большой гаражный бокс с желтой "
+                             "вывеской 'Активный отдых'.\n\tОписание: Только качественные и проверенные товары для "
+                             "готовки на огне🔥"
+                             "Отправляем ✈ по России \n\tВ нашем магазине вы найдете:\n\t ✅ Чугунные казаны из "
+                             "Узбекистана"
+                             "и печи к ним, треноги.\n\t ✅ Афганские казаны Рашко Баба.\n\t ✅ Качественные мангалы и "
+                             "печи.\n\t ✅"
+                             "Узбекские пчаки.\n\t ✅ Керамическую посуду, саджи (чугунные и стальные), подставки к "
+                             "ним.\n\t ✅"
+                             "Шампуры поштучно и в подарочных наборах.\n\t ✅ Аксессуары для готовки дома и на природе: "
+                             "шумовки, половники, щипцы, камни для выпечки, вилки - ножи")
+
+
+def handle_message_anketa(userid, message):
+    if message == commands_for_anketa[0]:
+        key = get_back_anketa()
+        send_keyboard(userid, "Введите ваше имя:", key)
+
+        new_msg = New_message(userid)
+
+        handle_name(userid, new_msg)
+
+    elif message == commands_for_anketa[1]:
+        key = get_back_anketa()
+        send_keyboard(userid, "Введите ваш телефон:", key)
+
+        phone = New_message(userid)
+
+        handle_phone(userid, phone)
+
+    elif message == commands_for_anketa[2]:
+        key = get_back_anketa()
+        send_keyboard(userid, "Введите ваш город'", key)
+
+        city = New_message(userid)
+
+        handle_city(userid, city)
+    elif message == commands_for_anketa[3]:
+        key = get_back_anketa()
+        send_keyboard(userid, "Введите ваш адрес:", key)
+
+        address = New_message(userid)
+
+        handle_address(userid, address)
+
+
+def handle_name(userid, name):
+    user = DBHelper()
+    user.update('user', 'id', user_id, 'name', name)
+    key = get_anketa()
+    send_keyboard(userid, f"Ваше имя '{name}' сохранено!", key)
+
+
+def validate_phone_number(phone_number):
+    try:
+        parsed_number = phonenumbers.parse(phone_number, "RU")
+        is_valid = phonenumbers.is_valid_number(parsed_number)
+        return is_valid
+    except phonenumbers.phonenumberutil.NumberParseException:
+        return False
+
+
+def handle_phone(userid, phone):
+    if phone == 'Назад ⬅':
+        handle_message_back(userid, phone)
+    elif validate_phone_number(phone):
+        user = DBHelper()
+        user.update('user', 'id', user_id, 'phone', phone)
+        key = get_anketa()
+        send_keyboard(userid, f"Ваш телефон '{phone}' сохранен!", key)
+        # Сохранение имени в базу данных
+        # save_name(userid, phone)
+    else:
+        key = get_anketa()
+        send_keyboard(userid, "Некорректный номер телефона. Пожалуйста, введите номер в правильном формате. 😕", key)
+
+
+def check_city(city):
+    api_key = "0c4d541d-3452-4b46-b30a-63c4aaeda180"
+    url = f"https://geocode-maps.yandex.ru/1.x/?apikey={api_key}&format=json&geocode={city}"
+
+    response = requests.get(url)
+    data = response.json()
+
+    try:
+        # Получить статус ответа
+        response_code = int(
+            data["response"]["GeoObjectCollection"]["metaDataProperty"]["GeocoderResponseMetaData"]["found"])
+
+        # Если найдено хотя бы одно совпадение, город существует
+        if response_code > 0:
+            return True
+        else:
+            return False
+    except KeyError:
+        # Если произошла ошибка при обработке ответа, считаем ввод некорректным
+        return False
+
+
+def handle_city(userid, city):
+    if city == 'Назад ⬅':
+        handle_message_back(userid, city)
+    elif check_city(city):
+        user = DBHelper()
+        user.update('user', 'id', user_id, 'town', city)
+        # Сохранение имени в базу данных
+        # save_name(userid, city)
+        key = get_anketa()
+        send_keyboard(userid, f"Ваш город'{city}' сохранен!", key)
+    else:
+        key = get_anketa()
+        send_keyboard(userid, "Город не найден или не принадлежит России.", key)
+
+
+def check_address(address):
+    # Замените "your_api_key" на ваш ключ API геокодирования Яндекса
+    api_key = "ec8e7d47-3fe3-42a4-a1de-c4f01f6f8f08"
+    url = f"https://geocode-maps.yandex.ru/1.x/?apikey={api_key}&format=json&geocode={address}"
+
+    response = requests.get(url)
+    data = response.json()
+
+    try:
+        # Получить статус ответа и преобразовать в целое число
+        response_code = int(
+            data["response"]["GeoObjectCollection"]["metaDataProperty"]["GeocoderResponseMetaData"]["found"])
+
+        # Если найдено хотя бы одно совпадение, адрес существует
+        if response_code > 0:
+            return True
+        else:
+            return False
+    except KeyError:
+        # Если произошла ошибка при обработке ответа, считаем ввод некорректным
+        return False
+
+
+def handle_address(userid, address):
+    if address == 'Назад ⬅':
+        handle_message_back(userid, address)
+    elif check_address(address):
+        # Сохранение имени в базу данных
+        # save_name(userid, address)
+        key = get_anketa()
+        send_keyboard(userid, f"Ваш адрес'{address}' сохранен!", key)
+    else:
+        key = get_anketa()
+        send_keyboard(userid, "Некорректный адрес!", key)
+
+
+def handle_find(userid, message):
+    if message == "Поиск 🔎":
+        key = get_order()
+        send_keyboard(userid, "Введите наименование товара для поиска", key)
+
+        new_msg = New_message(userid)
+
+        handle_product(userid, new_msg)
+
+
+def handle_product(userid, product):
+    helper = DBHelper()
+    product_names = helper.print_info('product')
+
+    matching_products = [prod for prod in product_names if product.lower() in prod[1].lower()]
+    matching_name = []
+    index = 0
+
+    key = VkKeyboard(one_time=True)
+    if matching_products:
+        key = get_list_search(product)
+        for prod in matching_products:
+            message, attachment, keyboard = create_product_card(prod)
+            vk.messages.send(
+                random_id=vk_api.utils.get_random_id(),
+                peer_id=userid,
+                message=message,
+                attachment=attachment
+            )
+
+        send_keyboard(userid, f"Результат поиска", key)
+    else:
+        key = get_order()
+        send_keyboard(userid, "Товар не найден. Попробуйте ввести другое наименование или вернуться на главную.", key)
+        new_msg = New_message(userid)
+        handle_product(userid, new_msg)
+
+
+def handle_products(userid, message):
+    product_names = get_name_for_search()
+    if message in product_names:
+        helper = DBHelper()
+        basket = helper.get('basket', ['user_id'], [str(userid)])
+        prod = helper.get('product', ['name'], [clean_message(message)])
+        helper.insert('basket_products', ['basket_id', 'product_id', 'num'], [basket[0][0], prod[0][0], 1])
+
+        key = get_product()
+        send_keyboard(userid, f"Выбранный вами товар '{message}'. Он отправился в корзину", key)
+
+    # тут нужно занесение этого товара в бд и корзину
+
+def clean_message(mess):
+    words = mess.split()
+    words.pop(-1)
+    word = " ".join(words)
+    return word
+
+def handle_message_making(userid, message):
+    if message in commands_for_making:
+        list_of_order.clear()
+        list_of_order.append(clean_message(message))
+        key = get_pay()
+        send_keyboard(userid, "Выберите способ оплаты:", key)
+
+
+def handle_message_operator(userid, message):
+    if message == "Оператор 📞":
+        key = get_home()
+        send_keyboard(userid, "Оператор скоро подойдёт к вам", key)
+
+
+def handle_message_back(userid, message):
+    if message == "Назад ⬅":
+        key = get_anketa()
+        send_keyboard(userid, "Ваша анкета:", key)
+
+
+def handle_message_order(userid, message):
+    if message == "Оформить заказ 📦":
+        key = get_making()
+        send_keyboard(user_id, "Выбери способ доставки:", key)
+
+
+def handle_message_pay(userid, message):
+    if message in commands_for_pay:
+        key = get_start()
+        list_of_order.append(clean_message(message))
+        helper = DBHelper()
+        basket = helper.get('basket', ['user_id'], [str(userid)])
+        basket_prod = helper.get('basket_products', ['basket_id'], [str(basket[0][0])])
+        products_ = []
+        for prod_id in basket_prod:
+            new_prod = helper.get('product', ['id'], [str(prod_id[2])])
+            products_.append([new_prod[0], prod_id[3]])
+        helper.delete('basket_products', 'basket_id', str(basket[0][0]))
+        helper.insert('package', ['user_id', 'status', 'date', 'payment', 'delivery'], [userid, 'Ожидайте ответа', date.today(), list_of_order[1], list_of_order[0]])
+        package = helper.get('package', ['user_id'], [str(userid)])
+        for product in products_:
+            helper.insert('package_products', ['package_id', 'product_id', 'num'], [str(package[0][0]), str(product[0][0]), product[1]])
+        send_keyboard(userid, "Ваш заказ оформлен, ожидайте сообщения/звонка от оператора", key)
+
+
+def handle_for_admin(userid, message):
+    if message == "код":
+        key = get_start_for_admin()
+        send_keyboard(userid, "Выберите команду:", key)
+
+
+def handle_for_list_of_orders(userid, message):
+    if message == "Список заказов 📖":
+        key = get_order()
+        send_keyboard(userid, "Список заказов:", key)
+
+
+def handle_for_status(userid, message):
+    if message == "Изменить статус заказа 🔁":
+        key = get_order()
+        send_keyboard(userid, "Введите номер заказа", key)
+
+        new_msg = New_message(userid)
+
+        handle_new_code(userid, new_msg)
+
+def handle_new_code(userid, order):
+    key = get_order()
+    send_keyboard(userid, "Введите статус для заказа", key)
+
+    status = New_message(userid)
+
+    handle_new_status(userid, status, order)
+
+
+def handle_new_status(userid, new_status, order):
+    order = DBHelper()
+    # таблица для акций order.update('user', 'id', user_id, 'name', name)
+    key = get_start_for_admin()
+    send_keyboard(userid, f"Ваш статус заказа сохранён!", key)
+
+
+def handle_for_sale(userid, message):
+    if message == "Изменить акцию 💯":
+        key = get_order()
+        send_keyboard(userid, "Введите новую акцию:", key)
+
+        new_msg = New_message(userid)
+
+        handle_new_sale(userid, new_msg)
+
+
+def handle_new_sale(userid, new_sale):
+    sale = DBHelper()
+    # таблица для акций sale.update('user', 'id', user_id, 'name', name)
+    key = get_start_for_admin()
+    send_keyboard(userid, f"Ваша новая акция сохранена!", key)
+
+
+def write_card(userid):
+    helper = DBHelper()
+    products_ = helper.print_info('product')
+    for product in products_:
+        message, attachment, keyboard = create_product_card(product)
+        vk.messages.send(
+            random_id=vk_api.utils.get_random_id(),
+            peer_id=userid,
+            message=message,
+            attachment=attachment
+        )
+
+def write_card_basket(userid):
+    helper = DBHelper()
+    basket = helper.get('basket', ['user_id'], [str(userid)])
+    basket_prod = helper.get('basket_products', ['basket_id'], [str(basket[0][0])])
+    products_ = []
+    for prod_id in basket_prod:
+        new_prod = helper.get('product', ['id'], [str(prod_id[2])])
+        products_.append([new_prod[0], prod_id[3]])
+    for product in products_:
+        send_message(userid, f"Количество: {product[1]}")
+        message, attachment, keyboard = create_product_card(product[0])
+        vk.messages.send(
+            random_id=vk_api.utils.get_random_id(),
+            peer_id=userid,
+            message=message,
+            attachment=attachment
+        )
+
+
+def write_card_package(userid, packageid):
+    helper = DBHelper()
+    package = helper.get('package', ['id', 'user_id'], [clean_message(packageid), str(userid)])  # TODO
+    package_prod = helper.get('package_products', ['package_id'], [str(package[0][0])])
+    products_ = []
+    for prod_id in package_prod:
+        new_prod = helper.get('product', ['id'], [str(prod_id[2])])
+        products_.append([new_prod[0], prod_id[3]])
+    for product in products_:
+        send_message(userid, f"Количество: {product[1]}")
+        message, attachment, keyboard = create_product_card(product[0])
+        vk.messages.send(
+            random_id=vk_api.utils.get_random_id(),
+            peer_id=userid,
+            message=message,
+            attachment=attachment
+        )
+
+
+def create_product_card(product):
+    # Создаем клавиатуру для кнопки "Добавить в корзину"
+    keyboard = get_list()
+
+    # Создаем сообщение с прикрепленной фотографией, описанием и стоимостью товара
+    message = f"📦 {product[1]}\n" \
+              f"💰 Цена: {product[3]} руб.\n" \
+              f"📝 Описание: {product[2]}"
+
+    path = f"./in/{product[0]}.jpg"
+    writeTofile(product[4], path)
+
+    # Загружаем фотографию товара и получаем ее вложение
+    upload = VkUpload(vk_session)
+    photo = upload.photo_messages(photos=path)[0]
+
+    # Прикрепляем фотографию к сообщению
+    attachment = f"photo{photo['owner_id']}_{photo['id']}"
+
+    return message, attachment, keyboard.get_keyboard()
+
+
+def New_message(id):
+    for event in longpool.listen():
+        if event.type == VkEventType.MESSAGE_NEW and event.to_me and event.user_id == id:
+            msg = event.text
+            return msg
+
+
+for event in longpool.listen():
+
+    if event.type == VkEventType.MESSAGE_NEW and event.to_me and event.text:
+
+        msg = event.text
+        mes = event.text.lower()
+        user_id = event.user_id
+        checkUser(user_id)
+        handle_message_start(user_id, msg)
+        handle_message_anketa(user_id, msg)
+        handle_products(user_id, msg)
+        handle_message_making(user_id, msg)
+        handle_message_operator(user_id, msg)
+        handle_message_back(user_id, msg)
+        handle_message_order(user_id, msg)
+        handle_message_pay(user_id, msg)
+        handle_find(user_id, msg)
+        handle_for_admin(user_id, mes)
+        handle_for_list_of_orders(user_id, msg)
+        handle_for_sale(user_id, msg)
+        handle_for_status(user_id, msg)
+
+        if (mes == "здравствуйте" or msg == "На главную 🏡" or mes == "на главную"
+                or mes == "начало" or mes == "главная" or mes == "старт"
+                or msg == "Режим пользователя👥"):
+            key = get_start()
+            send_keyboard(user_id, "Выберите команду:", key)
+
+        Thread(target=handle_message_anketa, args=(event, id)).start()
+        Thread(target=handle_for_sale, args=(event, id)).start()
+        Thread(target=handle_for_status, args=(event, id)).start()
+        Thread(target=handle_find, args=(event, id)).start()
+
