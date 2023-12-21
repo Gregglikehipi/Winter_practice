@@ -71,6 +71,7 @@ def get_basket(vkid):
 
 def home():
     key = VkKeyboard(one_time=True)
+    key.add_button('Режим пользователя👥', color=VkKeyboardColor.SECONDARY)
     key.add_button('код', color=VkKeyboardColor.SECONDARY)
     return key
 

@@ -354,7 +354,7 @@ def handle_message_pay(userid, message):
         helper.insert('package', ['user_id', 'status', 'date', 'payment', 'delivery'], [userid, 'Ожидайте ответа', date.today(), list_of_order[1], list_of_order[0]])
         package = helper.get('package', ['user_id'], [str(userid)])
         for product in products_:
-            helper.insert('package_products', ['package_id', 'product_id', 'num'], [str(package[0][0]), str(product[0][0]), product[1]])
+            helper.insert('package_products', ['package_id', 'product_id', 'num'], [str(package[-1][0]), str(product[0][0]), product[1]])
         send_keyboard(userid, "Ваш заказ оформлен, ожидайте сообщения/звонка от оператора", key)
 
 
