@@ -3,6 +3,7 @@ import requests
 import vk_api
 
 import phonenumbers
+import os.path
 from vk_api.keyboard import VkKeyboard
 
 from DBHelper import DBHelper, convertToBinaryData, writeTofile, checkUser
@@ -560,11 +561,13 @@ def create_product_card(product):
 
     # Создаем сообщение с прикрепленной фотографией, описанием и стоимостью товара
     message = f"📦 {product[1]}\n" \
-              f"💰 Цена: {product[3]} руб.\n" \
+              f"💰 Цена: {product[3]}\n" \
               f"📝 Описание: {product[2]}"
 
     path = f"./in/{product[0]}.jpg"
-    writeTofile(product[4], path)
+    check_file = os.path.isfile(path)
+    if not check_file:
+        writeTofile(product[4], path)
 
     # Загружаем фотографию товара и получаем ее вложение
     upload = VkUpload(vk_session)
