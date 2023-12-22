@@ -21,14 +21,16 @@ vk_session = vk_api.VkApi(
 
 longpool = VkLongPoll(vk_session)
 vk = vk_session.get_api()
-
+helper = DBHelper()
 commands_for_start = ['Каталог 🗂', 'Корзина 🛒', 'Заказы 📋', 'Акции 💯', 'Анкета 📝', 'Помощь 🙏', 'О нас 🏪']
 commands_for_anketa = ['Имя 👩👨', 'Телефон 📞', 'Город 🏤', 'Адрес 🏨']
 commands_for_making = ['Самовывоз 🚹', 'Доставка 🚕']
 commands_for_pay = ['Наличными при получении 💵', 'Переводом на карту 💳']
 commands_for_change = ['Удалить товар 💥', 'Добавить товар 👍']
-list_of_order = []
-product_for_change = []
+
+user_template = [[], "", 0]
+
+users = {}
 
 def send_keyboard(userid, some_text, keyboard):
     vk_session.method("messages.send", {"user_id": userid, "message": some_text, "random_id": get_random_id(),
@@ -41,9 +43,12 @@ def send_message(userid, some_text):
 
 def handle_message_start(userid, message):
     if message == commands_for_start[0]:
-        key = get_list()
         send_message(userid, "Каталог:")
-        write_card(userid)
+        user = users.get(userid)
+        user[2] = 0
+        users.update({userid: user})
+        key = get_list(user[2])
+        write_card(userid, user[2])
         send_keyboard(userid, "Выберите товар для добавления в корзину", key)
     elif message == commands_for_start[1]:
         key = get_basket(userid)
@@ -121,8 +126,7 @@ def handle_message_anketa(userid, message):
 
 
 def handle_name(userid, name):
-    user = DBHelper()
-    user.update('user', 'id', user_id, 'name', name)
+    helper.update('user', 'id', user_id, 'name', name)
     key = get_anketa()
     send_keyboard(userid, f"Ваше имя '{name}' сохранено!", key)
 
@@ -140,8 +144,7 @@ def handle_phone(userid, phone):
     if phone == 'Назад ⬅':
         handle_message_back(userid, phone)
     elif validate_phone_number(phone):
-        user = DBHelper()
-        user.update('user', 'id', user_id, 'phone', phone)
+        helper.update('user', 'id', user_id, 'phone', phone)
         key = get_anketa()
         send_keyboard(userid, f"Ваш телефон '{phone}' сохранен!", key)
         # Сохранение имени в базу данных
@@ -177,8 +180,7 @@ def handle_city(userid, city):
     if city == 'Назад ⬅':
         handle_message_back(userid, city)
     elif check_city(city):
-        user = DBHelper()
-        user.update('user', 'id', user_id, 'town', city)
+        helper.update('user', 'id', user_id, 'town', city)
         # Сохранение имени в базу данных
         # save_name(userid, city)
         key = get_anketa()
@@ -235,13 +237,11 @@ def handle_find(userid, message):
 
 
 def get_sale():
-    helper = DBHelper()
     sales = helper.print_info('promotion')
     sale = sales[0][1]
     return sale
 
 def handle_product(userid, product):
-    helper = DBHelper()
     product_names = helper.print_info('product')
 
     matching_products = [prod for prod in product_names if product.lower() in prod[1].lower()]
@@ -252,7 +252,7 @@ def handle_product(userid, product):
     if matching_products:
         key = get_list_search(product)
         for prod in matching_products:
-            message, attachment, keyboard = create_product_card(prod)
+            message, attachment = create_product_card(prod)
             vk.messages.send(
                 random_id=vk_api.utils.get_random_id(),
                 peer_id=userid,
@@ -271,7 +271,6 @@ def handle_product(userid, product):
 def handle_products(userid, message):
     product_names = get_name_for_search()
     if message in product_names:
-        helper = DBHelper()
         basket = helper.get('basket', ['user_id'], [str(userid)])
         prod = helper.get('product', ['name'], [clean_message(message)])
         helper.insert('basket_products', ['basket_id', 'product_id', 'num'], [basket[0][0], prod[0][0], 1])
@@ -288,25 +287,26 @@ def clean_message(mess):
 def handle_change_basket(userid, message):
     product_names = get_name_list_basket(userid)
     if message in product_names:
-        product_for_change.clear()
-        product_for_change.append(clean_message(message))
+        user = users.get(userid)
+        user[1] = clean_message(message)
+        users.update({userid: user})
         key = get_name_change()
         send_keyboard(userid, f"Выберите что делать с товаром", key)
 
 
 def handle_change_basket_prod(userid, message):
     if message == commands_for_change[0]:
-        helper = DBHelper()
+        user = users.get(userid)
         basket = helper.get('basket', ['user_id'], [str(userid)])
-        prod_id = helper.get('product', ['name'], [product_for_change[0]])
+        prod_id = helper.get('product', ['name'], [user[1]])
         real = helper.get('basket_products', ['basket_id', 'product_id'], [str(basket[0][0]), str(prod_id[0][0])])
         helper.delete('basket_products', 'id', real[0][0])
         key = get_basket(userid)
         send_keyboard(userid, "Корзина изменена", key)
     elif message == commands_for_change[1]:
-        helper = DBHelper()
+        user = users.get(userid)
         basket = helper.get('basket', ['user_id'], [str(userid)])
-        prod_id = helper.get('product', ['name'], [product_for_change[0]])
+        prod_id = helper.get('product', ['name'], [user[1]])
         real = helper.get('basket_products', ['basket_id', 'product_id'], [str(basket[0][0]), str(prod_id[0][0])])
         num = real[0][3] + 1
         helper.update('basket_products', 'id', str(real[0][0]), 'num', num)
@@ -315,8 +315,10 @@ def handle_change_basket_prod(userid, message):
 
 def handle_message_making(userid, message):
     if message in commands_for_making:
-        list_of_order.clear()
-        list_of_order.append(clean_message(message))
+        user = users.get(userid)
+        user[0].clear()
+        user[0].append(clean_message(message))
+        users.update({userid: user})
         key = get_pay()
         send_keyboard(userid, "Выберите способ оплаты:", key)
 
@@ -343,8 +345,9 @@ def handle_message_order(userid, message):
 def handle_message_pay(userid, message):
     if message in commands_for_pay:
         key = get_start()
-        list_of_order.append(clean_message(message))
-        helper = DBHelper()
+        user = users.get(userid)
+        user[0].append(clean_message(message))
+        users.update({userid: user})
         basket = helper.get('basket', ['user_id'], [str(userid)])
         basket_prod = helper.get('basket_products', ['basket_id'], [str(basket[0][0])])
         products_ = []
@@ -352,7 +355,7 @@ def handle_message_pay(userid, message):
             new_prod = helper.get('product', ['id'], [str(prod_id[2])])
             products_.append([new_prod[0], prod_id[3]])
         helper.delete('basket_products', 'basket_id', str(basket[0][0]))
-        helper.insert('package', ['user_id', 'status', 'date', 'payment', 'delivery'], [userid, 'Ожидайте ответа', date.today(), list_of_order[1], list_of_order[0]])
+        helper.insert('package', ['user_id', 'status', 'date', 'payment', 'delivery'], [userid, 'Ожидайте ответа', date.today(), user[0][1], user[0][0]])
         package = helper.get('package', ['user_id'], [str(userid)])
         for product in products_:
             helper.insert('package_products', ['package_id', 'product_id', 'num'], [str(package[-1][0]), str(product[0][0]), product[1]])
@@ -368,11 +371,10 @@ def handle_for_admin(userid, message):
 def handle_for_order(userid, message):
     orders_id = get_list_order(userid)
     if message in orders_id:
-        helper = DBHelper()
         package = helper.get('package_products', ['package_id'], [clean_message(message)])
         for prods in package:
             new_prod = helper.get('product', ['id'], [str(prods[2])])
-            message, attachment, keyboard = create_product_card(new_prod[0])
+            message, attachment = create_product_card(new_prod[0])
             send_message(userid, f"Количество: {prods[3]}")
             vk.messages.send(
                 random_id=vk_api.utils.get_random_id(),
@@ -387,11 +389,10 @@ def handle_for_order(userid, message):
 def handle_for_order_admin(userid, message):
     orders_id = get_order_all_list()
     if message in orders_id:
-        helper = DBHelper()
         package = helper.get('package_products', ['package_id'], [clean_message(message)])
         for prods in package:
             new_prod = helper.get('product', ['id'], [str(prods[2])])
-            message, attachment, keyboard = create_product_card(new_prod[0])
+            message, attachment = create_product_card(new_prod[0])
             send_message(userid, f"Количество: {prods[3]}")
             vk.messages.send(
                 random_id=vk_api.utils.get_random_id(),
@@ -432,7 +433,6 @@ def handle_new_code(userid, order):
 
 
 def handle_new_status(userid, new_status, order):
-    helper = DBHelper()
     helper.update('package', 'id', order, 'status', new_status)
     key = get_start_for_admin()
     send_keyboard(userid, f"Ваш статус заказа сохранён!", key)
@@ -449,17 +449,19 @@ def handle_for_sale(userid, message):
 
 
 def handle_new_sale(userid, new_sale):
-    helper = DBHelper()
     helper.update('promotion', 'id', 1, 'description', new_sale)
     key = get_start_for_admin()
     send_keyboard(userid, f"Ваша новая акция сохранена!", key)
 
 
-def write_card(userid):
-    helper = DBHelper()
+def write_card(userid, num):
+    pos = num * 4
+    end = pos + 4
     products_ = helper.print_info('product')
-    for product in products_:
-        message, attachment, keyboard = create_product_card(product)
+    if len(products_) < end:
+        end = len(products_)
+    for i in range(pos, end):
+        message, attachment = create_product_card(products_[i])
         vk.messages.send(
             random_id=vk_api.utils.get_random_id(),
             peer_id=userid,
@@ -467,8 +469,18 @@ def write_card(userid):
             attachment=attachment
         )
 
+
+def handle_more(userid, message):
+    if message == "Ещё 🚀":
+        user = users.get(userid)
+        user[2] += 1
+        users.update({userid: user})
+        key = get_list(user[2])
+        write_card(userid, user[2])
+        send_keyboard(userid, "Выберите товар для добавления в корзину", key)
+
+
 def write_card_order(userid):
-    helper = DBHelper()
     orders = helper.get('package', ['user_id'], [str(userid)])
     for order in orders:
         mess = create_order_card(order)
@@ -479,7 +491,6 @@ def write_card_order(userid):
         )
 
 def write_card_order_all(userid):
-    helper = DBHelper()
     orders = helper.print_info('package')
     for order in orders:
         user = helper.get('user', ['id'], [str(order[1])])
@@ -518,7 +529,6 @@ def create_order_card_with_user(order, user):
 
 
 def write_card_basket(userid):
-    helper = DBHelper()
     basket = helper.get('basket', ['user_id'], [str(userid)])
     basket_prod = helper.get('basket_products', ['basket_id'], [str(basket[0][0])])
     products_ = []
@@ -527,7 +537,7 @@ def write_card_basket(userid):
         products_.append([new_prod[0], prod_id[3]])
     for product in products_:
         send_message(userid, f"Количество: {product[1]}")
-        message, attachment, keyboard = create_product_card(product[0])
+        message, attachment = create_product_card(product[0])
         vk.messages.send(
             random_id=vk_api.utils.get_random_id(),
             peer_id=userid,
@@ -537,7 +547,6 @@ def write_card_basket(userid):
 
 
 def write_card_package(userid, packageid):
-    helper = DBHelper()
     package = helper.get('package', ['id', 'user_id'], [clean_message(packageid), str(userid)])  # TODO
     package_prod = helper.get('package_products', ['package_id'], [str(package[0][0])])
     products_ = []
@@ -546,7 +555,7 @@ def write_card_package(userid, packageid):
         products_.append([new_prod[0], prod_id[3]])
     for product in products_:
         send_message(userid, f"Количество: {product[1]}")
-        message, attachment, keyboard = create_product_card(product[0])
+        message, attachment = create_product_card(product[0])
         vk.messages.send(
             random_id=vk_api.utils.get_random_id(),
             peer_id=userid,
@@ -557,7 +566,6 @@ def write_card_package(userid, packageid):
 
 def create_product_card(product):
     # Создаем клавиатуру для кнопки "Добавить в корзину"
-    keyboard = get_list()
 
     # Создаем сообщение с прикрепленной фотографией, описанием и стоимостью товара
     message = f"📦 {product[1]}\n" \
@@ -576,7 +584,7 @@ def create_product_card(product):
     # Прикрепляем фотографию к сообщению
     attachment = f"photo{photo['owner_id']}_{photo['id']}"
 
-    return message, attachment, keyboard.get_keyboard()
+    return message, attachment
 
 
 def New_message(id):
@@ -585,6 +593,11 @@ def New_message(id):
             msg = event.text
             return msg
 
+def addUser(user_id):
+    if user_id in users:
+        print("Good")
+    else:
+        users.update({user_id: user_template})
 
 for event in longpool.listen():
 
@@ -593,11 +606,13 @@ for event in longpool.listen():
         msg = event.text
         mes = event.text.lower()
         user_id = event.user_id
+        addUser(user_id)
         checkUser(user_id)
         handle_for_order(user_id, msg)
         handle_message_start(user_id, msg)
         handle_message_anketa(user_id, msg)
         handle_products(user_id, msg)
+        handle_more(user_id, msg)
         handle_change_basket(user_id, msg)
         handle_change_basket_prod(user_id, msg)
         handle_message_making(user_id, msg)

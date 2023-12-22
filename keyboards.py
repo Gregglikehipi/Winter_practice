@@ -1,7 +1,7 @@
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from DBHelper import DBHelper
 
-
+helper = DBHelper()
 def get_start():
     key = VkKeyboard(one_time=True)
     key.add_button('Каталог 🗂', color=VkKeyboardColor.SECONDARY)
@@ -77,7 +77,6 @@ def home():
 
 def get_order(userid):
     key = VkKeyboard(one_time=True)
-    helper = DBHelper()
     orders = helper.get('package', ['user_id'], [str(userid)])
     for order in orders:
         key.add_button(str(order[0]) + " 🔔", color=VkKeyboardColor.SECONDARY)
@@ -88,7 +87,6 @@ def get_order(userid):
 
 def get_order_all():
     key = VkKeyboard(one_time=True)
-    helper = DBHelper()
     orders = helper.print_info('package')
     for order in orders:
         key.add_button(str(order[0]) + " ⚒", color=VkKeyboardColor.SECONDARY)
@@ -98,7 +96,6 @@ def get_order_all():
 
 
 def get_order_all_list():
-    helper = DBHelper()
     orders = helper.print_info('package')
     ord = []
     for order in orders:
@@ -107,7 +104,6 @@ def get_order_all_list():
 
 
 def get_list_order(userid):
-    helper = DBHelper()
     orders = helper.get('package', ['user_id'], [str(userid)])
     list = []
     for orders in orders:
@@ -155,14 +151,18 @@ def get_home():
     return key
 
 
-def get_list():
+def get_list(num):
     product_names = get_name()
     keys = VkKeyboard(one_time=True)
-
-    for i in range(len(product_names)):
+    pos = num * 4
+    end = pos + 4
+    if len(product_names) < end:
+        end = len(product_names)
+    for i in range(pos, end):
         name = product_names[i]
         keys.add_button(name + " ✅", color=VkKeyboardColor.SECONDARY)
         keys.add_line()
+    keys.add_button("Ещё 🚀")
     keys.add_button("Поиск 🔎")
     return keys
 
@@ -180,7 +180,6 @@ def get_list_search(name):
 
 
 def get_name():
-    helper = DBHelper()
     products_ = helper.print_info('product')
     product_names = []
     index = 0
@@ -190,7 +189,6 @@ def get_name():
 
 
 def get_name_for_search():
-    helper = DBHelper()
     products_ = helper.print_info('product')
     product_names = []
     index = 0
@@ -200,7 +198,6 @@ def get_name_for_search():
 
 
 def get_name_search(name):
-    helper = DBHelper()
     products_ = helper.print_info('product')
     product_names = []
     index = 0
@@ -217,7 +214,6 @@ def get_name_change():
     return key
 
 def get_name_vkid(vkid):  # TODO
-    helper = DBHelper()
     basket = helper.get('basket', ['user_id'], [str(vkid)])
     basket_prod = helper.get('basket_products', ['basket_id'], [str(basket[0][0])])
     products_ = []
