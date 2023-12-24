@@ -7,7 +7,6 @@ def convertToBinaryData(filename):
     return blobData
 
 
-
 def writeTofile(data, filename):
     # Convert binary data to proper format and write it on Hard Disk
     with open(filename, 'wb') as file:
