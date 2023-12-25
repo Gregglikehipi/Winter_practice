@@ -14,10 +14,10 @@ from datetime import date
 
 from keyboards import get_start, get_anketa, get_home, get_basket, get_katalog, get_order, get_back_anketa, get_pay, \
     get_making, get_chat, get_list, get_product, get_name, get_start_for_admin, get_list_search, get_name_for_search, \
-    get_name_vkid, get_name_change, get_name_list_basket, get_list_order, get_order_all, get_order_all_list, home
+    get_name_vkid, get_name_change, get_name_list_basket, get_list_order, get_order_all, get_order_all_list, home, go_home
 
 vk_session = vk_api.VkApi(
-    token="vk1.a.UtRaqh6hUBK2pHpcErYc-W4DVIzSrpquWdel63eSOl6lhhZlFyz2xOq2-9CZHG_FPu1h0TQxf5YdaJ0Gf8ZS90LKtV-ofDmXyGrVlsDY-W2uDEOAhrjnIRmTl-qDFkAxti3xLiYhkkPauRHqUPl5ZZ11m1IgcagujPAzDxZUgsa1KCWpYxOwbCnjUjhUqQt9cDrPAeh7ujFPMwmeos3OHw")
+    token="vk1.a.oNGYBZv8PVJV-SvTUsaoDCgaNjQ-zT1bAw26sq9r8NF77fihhFMYtf8Ks920_TPnxCUHWWxiK6giQSr5PijUy1JckcX6CZfYV84gq5IkVDzyHG8_VRq2Eb3AhQH6SvgGKqOL7pGPLkVB893JC96A1YcTaXLJHAmHN5vnRCi3gWAg72_hdScfUPEUAZI7XnZl_9DUEzQJKMYc7-foHVdd4w")
 
 longpool = VkLongPoll(vk_session)
 vk = vk_session.get_api()
@@ -63,8 +63,7 @@ def handle_message_start(userid, message):
         send_keyboard(userid, "Выберите номер заказа, чтобы детально просмотреть информацию о нём", key)
     elif message == commands_for_start[3]:
         key = get_start()
-        send_message(userid, get_sale())
-        send_keyboard(userid, "Действующая акция:", key)
+        send_keyboard(userid, f"Действующая акция: \n {get_sale()}", key)
     elif message == commands_for_start[4]:
         key = get_anketa()
         send_keyboard(userid, "Ваша анкета:", key)
@@ -112,7 +111,7 @@ def handle_message_anketa(userid, message):
 
     elif message == commands_for_anketa[2]:
         key = get_back_anketa()
-        send_keyboard(userid, "Введите ваш город'", key)
+        send_keyboard(userid, "Введите ваш город:", key)
 
         city = New_message(userid)
 
@@ -127,9 +126,12 @@ def handle_message_anketa(userid, message):
 
 
 def handle_name(userid, name):
-    helper.update('user', 'id', user_id, 'name', name)
-    key = get_anketa()
-    send_keyboard(userid, f"Ваше имя '{name}' сохранено!", key)
+    if name == 'Назад ⬅':
+        handle_message_back(userid, name)
+    else:
+        helper.update('user', 'id', user_id, 'name', name)
+        key = get_anketa()
+        send_keyboard(userid, f"Ваше имя '{name}' сохранено!", key)
 
 
 def validate_phone_number(phone_number):
@@ -156,7 +158,7 @@ def handle_phone(userid, phone):
 
 
 def check_city(city):
-    api_key = "0c4d541d-3452-4b46-b30a-63c4aaeda180"
+    api_key = "af33c8f0-28a0-4b9b-96e9-e42e7f80d752"
     url = f"https://geocode-maps.yandex.ru/1.x/?apikey={api_key}&format=json&geocode={city}"
 
     response = requests.get(url)
@@ -180,20 +182,18 @@ def check_city(city):
 def handle_city(userid, city):
     if city == 'Назад ⬅':
         handle_message_back(userid, city)
-    elif check_city(city):
+    else:
         helper.update('user', 'id', user_id, 'town', city)
         # Сохранение имени в базу данных
         # save_name(userid, city)
         key = get_anketa()
-        send_keyboard(userid, f"Ваш город'{city}' сохранен!", key)
-    else:
-        key = get_anketa()
-        send_keyboard(userid, "Город не найден или не принадлежит России.", key)
+        send_keyboard(userid, f"Ваш город '{city}' сохранен!", key)
+
 
 
 def check_address(address):
     # Замените "your_api_key" на ваш ключ API геокодирования Яндекса
-    api_key = "ec8e7d47-3fe3-42a4-a1de-c4f01f6f8f08"
+    api_key = "af33c8f0-28a0-4b9b-96e9-e42e7f80d752"
     url = f"https://geocode-maps.yandex.ru/1.x/?apikey={api_key}&format=json&geocode={address}"
 
     response = requests.get(url)
@@ -217,19 +217,16 @@ def check_address(address):
 def handle_address(userid, address):
     if address == 'Назад ⬅':
         handle_message_back(userid, address)
-    elif check_address(address):
-        # Сохранение имени в базу данных
+    else:
+        helper.update('user', 'id', user_id, 'address', address)
         # save_name(userid, address)
         key = get_anketa()
-        send_keyboard(userid, f"Ваш адрес'{address}' сохранен!", key)
-    else:
-        key = get_anketa()
-        send_keyboard(userid, "Некорректный адрес!", key)
+        send_keyboard(userid, f"Ваш адрес '{address}' сохранен!", key)
 
 
 def handle_find(userid, message):
     if message == "Поиск 🔎":
-        key = get_order()
+        key = go_home()
         send_keyboard(userid, "Введите наименование товара для поиска", key)
 
         new_msg = New_message(userid)
@@ -264,7 +261,7 @@ def handle_product(userid, product):
 
         send_keyboard(userid, f"Результат поиска:", key)
     else:
-        key = get_order()
+        key = go_home()
         send_keyboard(userid, "Товар не найден. Попробуйте ввести другое наименование или вернуться на главную.", key)
         new_msg = New_message(userid)
         handle_product(userid, new_msg)

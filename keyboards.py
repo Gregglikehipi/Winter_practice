@@ -75,6 +75,12 @@ def home():
     key.add_button('На главную 🏠', color=VkKeyboardColor.SECONDARY)
     return key
 
+def go_home():
+    key = VkKeyboard(one_time=True)
+    key.add_button('На главную 🏡', color=VkKeyboardColor.SECONDARY)
+    return key
+
+
 def get_order(userid):
     key = VkKeyboard(one_time=True)
     orders = helper.get('package', ['user_id'], [str(userid)])
